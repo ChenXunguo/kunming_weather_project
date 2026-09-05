@@ -1,0 +1,33 @@
+# 虚拟环境
+.venv/
+venv/
+
+# Python编译缓存
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# 密钥环境文件，绝对不要提交！
+.env
+
+# 日志
+logs/*.log
+
+# 模型序列化文件
+*.pkl
+*.pickle
+
+# 输出图片
+output/*.png
+*.png
+
+# SQL导出备份
+*.sql
+
+# PyCharm配置
+.idea/
+*.iml
+
+# Windows系统垃圾文件
+Thumbs.db
