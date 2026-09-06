@@ -185,4 +185,4 @@ Python・Requests・Pandas/NumPy・SQLAlchemy + PyMySQL・scikit-learn・Pyechar
 
 * WeasyPrint 在 Windows 需 GTK 运行库，缺失时季度报告自动输出 HTML 版本；
 
-* 密钥仅存于 `.env`（已 gitignore），请勿提交到仓库；如仓库曾公开，请立即轮换密钥。
+* 密钥仅存于 `.env`（已 gitignore）
