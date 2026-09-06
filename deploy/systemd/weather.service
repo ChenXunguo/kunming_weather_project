@@ -1,0 +1,22 @@
+[Unit]
+Description=Kunming Weather Data Collection and Analysis System
+After=network.target mysql.service
+Wants=mysql.service
+
+[Service]
+Type=simple
+User=weather
+Group=weather
+WorkingDirectory=/opt/kunming_weather_project
+Environment="PYTHONUNBUFFERED=1"
+Environment="PATH=/usr/local/bin:/usr/bin:/bin"
+ExecStart=/usr/bin/python3 /opt/kunming_weather_project/main.py
+ExecStop=/bin/kill -SIGTERM $MAINPID
+Restart=on-failure
+RestartSec=30
+StandardOutput=append:/var/log/weather/out.log
+StandardError=append:/var/log/weather/err.log
+SyslogIdentifier=weather
+
+[Install]
+WantedBy=multi-user.target

@@ -29,9 +29,9 @@ def check_model_performance():
             print("\n模型性能指标:")
             print(f"  测试集 RMSE: {metrics['test_rmse']:.3f} ℃")
             print(f"  测试集 MAE:  {metrics['test_mae']:.3f} ℃")
-            print(f"  测试集 R²:   {metrics['test_r2']:.3f}")
+            print(f"  测试集 R²:   {metrics.get('r2', 0):.3f}")
 
-            # 显示特征重要性
+            # 特征重要性：当前模型未导出该指标，如需要可在 prediction_model 中补充
             if 'feature_importance' in metrics:
                 print("\nTop 5 重要特征:")
                 for feat, imp in list(metrics['feature_importance'].items())[:5]:

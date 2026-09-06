@@ -31,17 +31,17 @@ def backfill_history(days: int = 30):
 
         try:
             # 只处理当天的数据（使用 record_time 过滤）
-            query = f"""
+            query = """
                 SELECT id, station_id, record_time,
                         temp_current, temp_max, temp_min, feels_like,
                        humidity, pressure, wind_speed, cloud_cover
                 FROM weather_data
-                WHERE DATE(record_time) = '{date_str}'
+                WHERE DATE(record_time) = :date_str
                 ORDER BY record_time
             """
 
             with cleaner.engine.connect() as conn:
-                df = pd.read_sql(query, conn)
+                df = pd.read_sql(query, conn, params={"date_str": date_str})
 
             if df.empty:
                 logger.info(f"{date_str} 无数据")

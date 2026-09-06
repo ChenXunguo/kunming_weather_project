@@ -173,9 +173,14 @@ class DashboardBuilder:
         with open(temp_html, "r", encoding="utf-8") as f:
             page_content = f.read()
 
-        # 将KPI卡片插入到第一个echarts容器之前
-        insert_mark = '<div class="chart-container"'
-        final_html = page_content.replace(insert_mark, f"{kpi_html}\n{insert_mark}", 1)
+        # 将KPI卡片插入到看板内容区起始处（pyecharts 渲染为 <div id=... class="chart-container"，
+        # 旧锚点 '<div class="chart-container"' 匹配不到会静默失败，改用 .box 容器开头）
+        insert_mark = '<div class="box">'
+        if insert_mark in page_content:
+            final_html = page_content.replace(insert_mark, f"{insert_mark}\n{kpi_html}", 1)
+        else:
+            logger.warning("未找到看板内容区锚点，KPI卡片未插入")
+            final_html = page_content
 
         with open(output_path, "w", encoding="utf-8") as f:
             f.write(final_html)

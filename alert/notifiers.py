@@ -6,7 +6,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.header import Header
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional
+from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -29,26 +29,25 @@ class EmailNotifier(Notifier):
         self.receivers = receivers
         self.use_tls = use_tls
 
-
-def send(self, subject: str, message: str, level: str = "INFO"):
-    if not self.receivers:
-        return
-    msg = MIMEMultipart()
-    msg['From'] = self.sender
-    msg['To'] = ', '.join(self.receivers)
-    msg['Subject'] = Header(f"[{level}] {subject}", 'utf-8')
-    msg.attach(MIMEText(message, 'plain', 'utf-8'))
-    try:
-        if self.use_tls:
-            server = smtplib.SMTP_SSL(self.smtp_host, self.smtp_port)
-        else:
-            server = smtplib.SMTP(self.smtp_host, self.smtp_port)
-        server.login(self.sender, self.password)
-        server.sendmail(self.sender, self.receivers, msg.as_string())
-        server.quit()
-        logger.info(f"邮件通知已发送: {subject}")
-    except Exception as e:
-        logger.error(f"邮件发送失败: {e}")
+    def send(self, subject: str, message: str, level: str = "INFO"):
+        if not self.receivers:
+            return
+        msg = MIMEMultipart()
+        msg['From'] = self.sender
+        msg['To'] = ', '.join(self.receivers)
+        msg['Subject'] = Header(f"[{level}] {subject}", 'utf-8')
+        msg.attach(MIMEText(message, 'plain', 'utf-8'))
+        try:
+            if self.use_tls:
+                server = smtplib.SMTP_SSL(self.smtp_host, self.smtp_port)
+            else:
+                server = smtplib.SMTP(self.smtp_host, self.smtp_port)
+            server.login(self.sender, self.password)
+            server.sendmail(self.sender, self.receivers, msg.as_string())
+            server.quit()
+            logger.info(f"邮件通知已发送: {subject}")
+        except Exception as e:
+            logger.error(f"邮件发送失败: {e}")
 
 
 class WeChatNotifier(Notifier):
@@ -87,7 +86,6 @@ class DingTalkNotifier(Notifier):
     def send(self, subject: str, message: str, level: str = "INFO"):
         if not self.webhook_url:
             return
-        # 简单实现，无加签
         data = {
             "msgtype": "text",
             "text": {

@@ -188,20 +188,12 @@ class WeatherDataCleaner:
         total_cells = original_count * len(self.NUMERIC_COLS)
         valid_cells = total_cells - final_nulls
 
-        # 统计异常值修正数量（通过与原始数据对比，忽略NaN）
-        outlier_count = 0
-        for col in self.NUMERIC_COLS:
-            if col in df.columns and col in df.columns:
-                # 这里简化处理：用clip前后的差异估算，但更精确的方式是保存中间状态
-                # 由于apply_3sigma已返回修正后的值，我们通过对比修正前后的值来统计
-                pass  # 此处通过日志记录，不再重复计算
-
         stats = {
             'total': original_count,
-            'valid': int(valid_cells / len(self.NUMERIC_COLS)) if self.NUMERIC_COLS else 0,  # 有效行数（所有列均非空）
+            'valid': 0,  # 下方基于有效行数重新计算
             'nulls_filled': original_nulls - final_nulls,
-            'outliers_fixed': 0,  # 将在调用层通过更精细的方式统计
-            'validity_rate': round((valid_cells / total_cells) * 100, 2) if total_cells > 0 else 0
+            'outliers_fixed': 0,  # 由调用层（clean_recent_records）对比前后值统计
+            'validity_rate': 0
         }
 
         # 计算有效行数（所有核心字段均非空）

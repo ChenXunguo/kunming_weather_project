@@ -1,6 +1,14 @@
-# 虚拟环境
+# ============ 虚拟环境（当前venv直接建在项目根目录） ============
 .venv/
 venv/
+Lib/
+Include/
+share/
+Scripts/
+系统脚本/
+pyvenv.cfg
+CACHEDIR.TAG
+*.egg-info/
 
 # Python编译缓存
 __pycache__/
@@ -10,24 +18,41 @@ __pycache__/
 
 # 密钥环境文件，绝对不要提交！
 .env
+.env.*
 
 # 日志
-logs/*.log
+logs/
+
+# 运行态
+run/
+*.pid
 
 # 模型序列化文件
+models/
+model_cache/
 *.pkl
 *.pickle
 
-# 输出图片
-output/*.png
+# 输出图片与报告
+reports/
+output/
 *.png
+*.jpg
+*.jpeg
+*.gif
 
 # SQL导出备份
-*.sql
+*.sql.bak
 
-# PyCharm配置
+# PyCharm / IDE
 .idea/
 *.iml
+.vscode/
 
 # Windows系统垃圾文件
 Thumbs.db
+Desktop.ini
+
+# 临时/草稿文件
+draft_*/
+_patch_*.py

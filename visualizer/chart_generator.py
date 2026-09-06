@@ -104,7 +104,7 @@ class ChartGenerator:
         if df.empty:
             return Line()
 
-        x_data = df["record_time"].dt.strftime("%m‑%d").tolist()
+        x_data = df["record_time"].dt.strftime("%m-%d").tolist()
         humi_data = df["humidity"].tolist()
         press_data = df["pressure"].tolist()
 

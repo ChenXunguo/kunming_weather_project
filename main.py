@@ -7,15 +7,20 @@ import os
 from pathlib import Path
 from loguru import logger
 
-# 确保logs目录存在
-Path("logs").mkdir(exist_ok=True)
-# pid目录
-Path("./run").mkdir(exist_ok=True)
+# 项目根目录（以本文件位置为准，不依赖启动时的工作目录）
+BASE_DIR = Path(__file__).resolve().parent
+LOG_DIR = BASE_DIR / "logs"
+RUN_DIR = BASE_DIR / "run"
+
+# 确保logs、run目录存在
+LOG_DIR.mkdir(exist_ok=True)
+RUN_DIR.mkdir(exist_ok=True)
 
 # 配置loguru日志（控制台 + 文件按天轮转，保留30天）
 logger.remove()
 logger.add(sys.stdout, level="INFO", format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}")
-logger.add("logs/weather_{time:YYYY-MM-DD}.log", rotation="1 day", retention="30 days", level="DEBUG")
+logger.add(str(LOG_DIR / "weather_{time:YYYY-MM-DD}.log"),
+           rotation="1 day", retention="30 days", level="DEBUG")
 
 # 配置标准logging，让调度器模块的日志也能输出
 logging.basicConfig(
@@ -33,6 +38,9 @@ from config.config import MONITOR_CONFIG, PROD_CONFIG
 # 全局调度器
 scheduler = None
 pid_file = Path(PROD_CONFIG["pid_path"])
+if not pid_file.is_absolute():
+    pid_file = BASE_DIR / pid_file
+
 
 def signal_handler(sig, frame):
     logger.info("收到退出信号，正在关闭系统...")
@@ -42,6 +50,7 @@ def signal_handler(sig, frame):
     if pid_file.exists():
         pid_file.unlink(missing_ok=True)
     sys.exit(0)
+
 
 def main():
     global scheduler
@@ -72,7 +81,15 @@ def main():
     scheduler = get_scheduler()
     scheduler.start()
 
-    # 注册信号处理(Ctrl‑C、kill终止)
+    # 启动后立即执行一次采集，避免等待下一个整点（可选）
+    if PROD_CONFIG.get("collect_on_startup", True):
+        try:
+            logger.info("启动后立即执行首次采集任务...")
+            scheduler.run_task_now("collect")
+        except Exception as e:
+            logger.error(f"启动时首次采集失败: {e}")
+
+    # 注册信号处理(Ctrl-C、kill终止)
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 
@@ -82,6 +99,7 @@ def main():
             time.sleep(1)
     except KeyboardInterrupt:
         signal_handler(None, None)
+
 
 if __name__ == "__main__":
     main()

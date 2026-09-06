@@ -1,7 +1,11 @@
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).parent.parent))
+
 import logging
 import json
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, List
 
 from sqlalchemy import create_engine, text
@@ -63,7 +67,7 @@ class WeatherCollector:
 
         try:
             dt_timestamp = data.get('dt', 0)
-            record_time = datetime.utcfromtimestamp(dt_timestamp) + timedelta(hours=8)
+            record_time = datetime.fromtimestamp(dt_timestamp, tz=timezone.utc).replace(tzinfo=None) + timedelta(hours=8)
 
             main = data.get('main', {})
             wind = data.get('wind', {})
@@ -101,7 +105,7 @@ class WeatherCollector:
         for item in data['list']:
             try:
                 dt_timestamp = item.get('dt', 0)
-                record_time = datetime.utcfromtimestamp(dt_timestamp) + timedelta(hours=8)
+                record_time = datetime.fromtimestamp(dt_timestamp, tz=timezone.utc).replace(tzinfo=None) + timedelta(hours=8)
 
                 main = item.get('main', {})
                 wind = item.get('wind', {})
@@ -149,39 +153,47 @@ class WeatherCollector:
             logger.warning("清洗后无有效数据")
             return 0
 
-        # 3. 写入数据库（保留防重复逻辑）
+        # 3. 写入数据库：批量查重 + executemany 插入（替代逐行SELECT+INSERT）
         with self.engine.connect() as conn:
-            inserted = 0
-            for _, row in cleaned_df.iterrows():
-                check = conn.execute(
+            # 一次查出这批数据中已存在的 (station_id, record_time, data_type)
+            existing = set()
+            for sid in set(cleaned_df['station_id'].tolist()):
+                rows = conn.execute(
                     text("""
-                        SELECT id FROM weather_data
-                         WHERE station_id = :station_id AND record_time = :record_time
-                        LIMIT 1
+                        SELECT record_time, data_type FROM weather_data
+                        WHERE station_id = :sid AND record_time >= :min_time
                     """),
-                    {"station_id": row['station_id'], "record_time": row['record_time']}
-                )
-                if check.fetchone():
-                    logger.debug(f"数据已存在: {row['record_time']}")
-                    continue
+                    {"sid": sid, "min_time": cleaned_df['record_time'].min()}
+                ).fetchall()
+                for r in rows:
+                    existing.add((sid, r[0], r[1]))
 
-                conn.execute(
-                    text("""
-                        INSERT INTO weather_data (
-                            station_id, record_time, temp_current, temp_max, temp_min,
-                            feels_like, humidity, pressure, wind_speed, wind_direction,
-                            wind_gusts, cloud_cover, weather_desc, data_source, raw_data, data_type
-                        ) VALUES (
-                            :station_id, :record_time, :temp_current, :temp_max, :temp_min,
-                            :feels_like, :humidity, :pressure, :wind_speed, :wind_direction,
-                            :wind_gusts, :cloud_cover, :weather_desc, :data_source, :raw_data, :data_type
-                        )
-                    """),
-                    row.to_dict()
-                )
-                inserted += 1
+            # 过滤出真正需要插入的行
+            dup_mask = cleaned_df.apply(
+                lambda r: (r['station_id'], r['record_time'], r['data_type']) in existing,
+                axis=1
+            )
+            to_insert = cleaned_df[~dup_mask]
+            inserted = int((~dup_mask).sum())
 
-            conn.commit()
+            if to_insert.empty:
+                logger.info("批量查重后无新增数据")
+            else:
+                insert_sql = text("""
+                    INSERT INTO weather_data (
+                        station_id, record_time, temp_current, temp_max, temp_min,
+                        feels_like, humidity, pressure, wind_speed, wind_direction,
+                        wind_gusts, cloud_cover, weather_desc, data_source, raw_data, data_type
+                    ) VALUES (
+                        :station_id, :record_time, :temp_current, :temp_max, :temp_min,
+                        :feels_like, :humidity, :pressure, :wind_speed, :wind_direction,
+                        :wind_gusts, :cloud_cover, :weather_desc, :data_source, :raw_data, :data_type
+                    )
+                """)
+                params = [row.to_dict() for _, row in to_insert.iterrows()]
+                conn.execute(insert_sql, params)
+                conn.commit()
+                logger.info(f"批量插入 {len(params)} 条")
 
         # 4. 记录当日质量统计
         self._log_quality_for_today(stats)
@@ -191,22 +203,22 @@ class WeatherCollector:
         """记录当天的数据质量统计，每日仅一条"""
         with self.engine.connect() as conn:
             # 按北京时间统计当日
-            today = (datetime.utcnow() + timedelta(hours=8)).date()
+            today = (datetime.now(timezone.utc) + timedelta(hours=8)).date()
 
-            # 当日已有记录则跳过
-            check = conn.execute(
-                text("SELECT id FROM data_quality_log WHERE record_date = :date"),
-                {'date': today}
-            )
-            if check.fetchone():
-                return
-
+            # 幂等写入：当日已有记录则更新（需 record_date 唯一索引）
             conn.execute(
                 text("""
                     INSERT INTO data_quality_log
                      (record_date, total_records, valid_records, outlier_count,
                       null_filled_count, validity_rate, cleaning_details)
                     VALUES (:date, :total, :valid, :outliers, :nulls, :rate, :details)
+                    ON DUPLICATE KEY UPDATE
+                        total_records = VALUES(total_records),
+                        valid_records = VALUES(valid_records),
+                        outlier_count = VALUES(outlier_count),
+                        null_filled_count = VALUES(null_filled_count),
+                        validity_rate = VALUES(validity_rate),
+                        cleaning_details = VALUES(cleaning_details)
                 """),
                 {
                     'date': today,

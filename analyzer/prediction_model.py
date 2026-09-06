@@ -39,7 +39,7 @@ class TemperaturePredictor:
         self.scaler = None
         self.target_hours = None
         # 统一变量名 model_dir，和save_model保持一致
-        self.model_dir = Path("./model_cache")
+        self.model_dir = Path(__file__).resolve().parent.parent / "model_cache"
         self.model_dir.mkdir(exist_ok=True)
 
     def load_training_data(self, days: int = 60) -> pd.DataFrame:

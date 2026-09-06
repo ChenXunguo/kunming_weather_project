@@ -92,6 +92,8 @@ MONITOR_CONFIG = {
     "health_check_host": "0.0.0.0",
     "health_check_port": 8899,
     "metrics_dump_interval_sec": 60,
+    # 调试/触发类接口鉴权令牌；留空则 /trigger 接口不可用（安全默认）
+    "api_token": os.getenv("MONITOR_API_TOKEN", ""),
 }
 
 # ====================== 生产部署配置 PROD_CONFIG 第三点优化 ======================
@@ -100,7 +102,8 @@ PROD_CONFIG = {
     "pid_path": "./run/weather.pid",
     "max_http_workers": 4,
     "allow_debug_api": False,
-    "health_check_timeout": 10
+    "health_check_timeout": 10,
+    "collect_on_startup": os.getenv("COLLECT_ON_STARTUP", "true").lower() == "true",
 }
 
 # 正确 pymysql 参数：server_timezone=Asia/Shanghai
